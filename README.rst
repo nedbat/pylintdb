@@ -42,3 +42,5 @@ Typical use:
 There are details in the code that you will have to change: GIT_DIR is the
 location of the source you are linting, and the pylint reporting format might
 be specific to edX.
+
+Licensed under the Apache 2.0 license.
