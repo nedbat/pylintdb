@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
+"""Put pylint violations into a SQLite database, and then query them."""
 
 import concurrent.futures
 import itertools
-import linecache
 import os.path
 import re
 import subprocess
@@ -20,10 +20,14 @@ def get_table():
     return get_database()['violation']
 
 
-@click.group()
+# Doing this oddly so I don't have to repeat the docstring...
 def cli():
     pass
+cli.__doc__ = __doc__
+cli = click.group()(cli)
 
+
+# edX pylint format, which might be different than the default.
 violation_regex = r"^(?P<file>.*):(?P<lineno>\d+): \[(?P<code>\w+)\((?P<slug>[\w-]+)\), (?P<thing>.*)\] (?P<message>.*)$"
 
 def read_report(violations, report):
@@ -45,6 +49,7 @@ def read_report(violations, report):
 
     return inserted
 
+
 @cli.command()
 @click.argument('reports', nargs=-1, type=click.File('r'))
 def read(reports):
@@ -54,22 +59,9 @@ def read(reports):
         inserted = read_report(violations, report)
         click.echo(f"Inserted {inserted} violations from {report.name}")
 
-@cli.command()
-def get_source():
-    """Get source lines for all the messages in the database."""
-    violations = get_table()
-    num_rows = violations.count()
-    rows = violations.all()
-    with click.progressbar(rows, length=num_rows, show_pos=True) as rows:
-        for data in rows:
-            path = os.path.join(GIT_DIR, data['file'])
-            line = linecache.getline(path, int(data['lineno']))
-            line = line.strip()
-            data['source'] = line
-            violations.update(data, ['id'])
-
 
 def blame_one(file_group):
+    """Run git blame on one file and return the updated rows."""
     filename, rows = file_group
 
     cmd = ['git', '-C', GIT_DIR, 'blame', '-e']
@@ -122,13 +114,12 @@ def blame():
                     bar.update(1)
 
 @cli.command()
-@click.option('--text', is_flag=True, help='Output plain text')
 @click.argument('condition')
-def where(condition, text):
+def where(condition):
+    """List out violations, based on a SQL where-clause."""
     sql = f"select * from violation where {condition}"
     for row in get_database().query(sql):
-        if text:
-            print("{gitdir}/{file}:{lineno}: {code}({slug}) {message}".format(gitdir=GIT_DIR, **row))
+        print("{gitdir}/{file}:{lineno}: {code}({slug}) {message}".format(gitdir=GIT_DIR, **row))
 
 
 if __name__ == '__main__':
