@@ -122,5 +122,23 @@ def where(condition):
         print("{gitdir}/{file}:{lineno}: {code}({slug}) {message}".format(gitdir=GIT_DIR, **row))
 
 
+@cli.command()
+def authors():
+    """List out all authors and their violation counts."""
+    sql = f"select author,count(*) as violationcount from violation group by author order by violationcount DESC"
+    for row in get_database().query(sql):
+        print(f"Author: {row['author']} - {row['violationcount']} violations")
+
+
+@cli.command()
+@click.argument("author")
+def authorviolations(author):
+    """List out violation count by a particular author."""
+    sql = f"select code, slug, count(code) as violationcount from violation where author='{author}' group by code order by violationcount DESC"
+    print(f"Violations for {author}\n")
+    for row in get_database().query(sql):
+        print(f"{row['code']}:{row['slug']} - {row['violationcount']}")
+
+
 if __name__ == '__main__':
     cli()
